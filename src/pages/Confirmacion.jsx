@@ -7,7 +7,10 @@ export default function Confirmacion() {
   if (!order) {
     return (
       <div style={{ padding: 16 }}>
-        <h1 data-testid="confirmacion-page">Página de Confirmación</h1>
+        <h1 data-testid="confirmacion-page" className="text-4xl font-bold mb-4">
+            Página de Confirmación
+        </h1>
+
         <p data-testid="confirmacion-sin-orden">No hay una orden reciente.</p>
         <Link to="/catalogo">Ir al catálogo</Link>
       </div>
