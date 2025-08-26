@@ -1,9 +1,17 @@
-import { readLastOrder } from "../lib/order";
-import { Link } from "react-router-dom";
+// src/pages/Confirmacion.jsx
+import { readLastOrder, hasFreshOrder, clearLastOrder } from "../lib/order";
+import { Link, useNavigate } from "react-router-dom";
+import { useEffect } from "react";
 import { formatARS } from "../lib/format";
 
 export default function Confirmacion() {
+  const navigate = useNavigate();
   const order = readLastOrder();
+
+  // Si no hay orden “fresca”, redirigimos al catálogo
+  useEffect(() => {
+    if (!hasFreshOrder(10)) navigate("/catalogo", { replace: true });
+  }, [navigate]);
 
   if (!order) {
     return (
@@ -32,7 +40,6 @@ export default function Confirmacion() {
       {/* Tarjeta de éxito */}
       <div className="bg-emerald-600/10 border border-emerald-600 rounded-lg p-4 mb-6 flex items-start gap-3">
         <div className="shrink-0 h-9 w-9 rounded-full bg-emerald-600 text-white flex items-center justify-center">
-          {/* ícono check simple */}
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
             <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
@@ -85,16 +92,22 @@ export default function Confirmacion() {
               to="/catalogo"
               data-testid="btn-volver"
               className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md shadow"
+              onClick={() => clearLastOrder()}  // 👈 limpiar orden al salir
             >
               Volver al catálogo
             </Link>
             <Link
               to="/checkout"
               className="bg-neutral-700 hover:bg-neutral-600 text-white px-4 py-2 rounded-md"
+              onClick={() => clearLastOrder()}  // 👈 limpiar orden al salir
             >
               Nueva compra
             </Link>
           </div>
+
+          <p className="text-xs text-neutral-500 mt-3">
+            Esta confirmación estará disponible por 10 minutos después de la compra.
+          </p>
         </div>
       </div>
     </div>

@@ -1,38 +1,39 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { readCart } from "../lib/cart";
 import { createOrder } from "../lib/order";
+import { isLoggedIn } from "../lib/session";
 
 export default function Checkout() {
   const [nombre, setNombre] = useState("");
   const [email, setEmail] = useState("");
   const [dni, setDni] = useState("");
   const [error, setError] = useState("");
+  const [items, setItems] = useState([]);
   const navigate = useNavigate();
 
-  const items = readCart();
+  // Regla 1: requiere login
+  useEffect(() => {
+    if (!isLoggedIn()) navigate("/login");
+  }, [navigate]);
+
+  // Regla 2: carrito no vacío
+  useEffect(() => {
+    const c = readCart();
+    setItems(c);
+    if (c.length === 0) navigate("/catalogo");
+  }, [navigate]);
+
   const total = items.reduce((acc, it) => acc + it.precio * it.cantidad, 0);
 
   const handleSubmit = (e) => {
     e.preventDefault();
     setError("");
 
-    if (!nombre.trim() || !email.trim() || !dni.trim()) {
-      setError("Completa todos los campos");
-      return;
-    }
-    if (!/^\S+@\S+\.\S+$/.test(email)) {
-      setError("Email inválido");
-      return;
-    }
-    if (!/^\d{7,9}$/.test(dni)) {
-      setError("DNI inválido");
-      return;
-    }
-    if (items.length === 0) {
-      setError("El carrito está vacío");
-      return;
-    }
+    if (!nombre.trim() || !email.trim() || !dni.trim()) return setError("Completa todos los campos");
+    if (!/^\S+@\S+\.\S+$/.test(email)) return setError("Email inválido");
+    if (!/^\d{7,9}$/.test(dni)) return setError("DNI inválido");
+    if (items.length === 0) return setError("El carrito está vacío");
 
     try {
       createOrder({ nombre, email, dni });

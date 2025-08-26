@@ -1,15 +1,18 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import Layout from "./components/Layout";
+import Layout from "./components/Layout.jsx";
 
-import Login from "./pages/Login";
-import Catalogo from "./pages/Catalogo";
-import Carrito from "./pages/Carrito";
-import Checkout from "./pages/Checkout";
-import Confirmacion from "./pages/Confirmacion";
-import Home from "./pages/Home";
+import Home from "./pages/Home.jsx";
+import Login from "./pages/Login.jsx";
+import Catalogo from "./pages/Catalogo.jsx";
+import Carrito from "./pages/Carrito.jsx";
+import Checkout from "./pages/Checkout.jsx";
+import Confirmacion from "./pages/Confirmacion.jsx";
 
+import RequireAuth from "./routes/RequireAuth.jsx";
+import RequireCart from "./routes/RequireCart.jsx";
+import RequireOrder from "./routes/RequireOrder.jsx";
 
-function App() {
+export default function App() {
   return (
     <Router>
       <Layout>
@@ -17,14 +20,39 @@ function App() {
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
           <Route path="/catalogo" element={<Catalogo />} />
-          <Route path="/carrito" element={<Carrito />} />
-          <Route path="/checkout" element={<Checkout />} />
-          <Route path="/confirmacion" element={<Confirmacion />} />
-          <Route path="*" element={<Login />} />
+
+          <Route
+            path="/carrito"
+            element={
+              <RequireAuth>
+                <Carrito />
+              </RequireAuth>
+            }
+          />
+
+          <Route
+            path="/checkout"
+            element={
+              <RequireAuth>
+                <RequireCart>
+                  <Checkout />
+                </RequireCart>
+              </RequireAuth>
+            }
+          />
+
+          <Route
+            path="/confirmacion"
+            element={
+              <RequireOrder>
+                <Confirmacion />
+              </RequireOrder>
+            }
+          />
+
+          <Route path="*" element={<Home />} />
         </Routes>
       </Layout>
     </Router>
   );
 }
-
-export default App;

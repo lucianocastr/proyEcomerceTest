@@ -1,10 +1,16 @@
+import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { readCart, clearCart } from "../lib/cart";
 import { formatARS } from "../lib/format";
-import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { isLoggedIn } from "../lib/session";
 
 export default function Carrito() {
   const [items, setItems] = useState([]);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!isLoggedIn()) navigate("/login");
+  }, [navigate]);
 
   useEffect(() => {
     setItems(readCart());
