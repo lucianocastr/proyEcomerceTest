@@ -6,12 +6,15 @@ import Catalogo from "./pages/Catalogo";
 import Carrito from "./pages/Carrito";
 import Checkout from "./pages/Checkout";
 import Confirmacion from "./pages/Confirmacion";
+import Home from "./pages/Home";
+
 
 function App() {
   return (
     <Router>
       <Layout>
         <Routes>
+          <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
           <Route path="/catalogo" element={<Catalogo />} />
           <Route path="/carrito" element={<Carrito />} />
