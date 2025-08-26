@@ -17,7 +17,6 @@ export default function Checkout() {
     e.preventDefault();
     setError("");
 
-    // Validaciones mínimas
     if (!nombre.trim() || !email.trim() || !dni.trim()) {
       setError("Completa todos los campos");
       return;
@@ -44,40 +43,78 @@ export default function Checkout() {
   };
 
   return (
-    <div style={{ padding: 16 }}>
-      <h1 data-testid="checkout-page">Página de Checkout</h1>
+    <div className="max-w-lg mx-auto bg-neutral-800 border border-neutral-700 rounded-lg shadow p-6">
+      <h1 className="text-2xl font-bold mb-4 text-center">Checkout</h1>
 
-      {items.length === 0 ? (
-        <p data-testid="checkout-sin-items">No hay items en el carrito.</p>
-      ) : (
-        <div>
-          <ul data-testid="checkout-resumen" style={{ listStyle: "none", padding: 0 }}>
+      {items.length > 0 && (
+        <div className="mb-4">
+          <ul className="text-sm space-y-1">
             {items.map((it) => (
               <li key={it.id}>
                 {it.nombre} × {it.cantidad} — ${it.precio * it.cantidad}
               </li>
             ))}
           </ul>
-          <p data-testid="checkout-total"><strong>Total: ${total}</strong></p>
+          <p className="mt-2 font-semibold">Total: ${total}</p>
         </div>
       )}
 
-      <form onSubmit={handleSubmit} data-testid="checkout-form" style={{ display: "grid", gap: 8, maxWidth: 420 }}>
-        <label htmlFor="nombre">Nombre</label>
-        <input id="nombre" data-testid="input-nombre" value={nombre} onChange={(e) => setNombre(e.target.value)} />
+      <form onSubmit={handleSubmit} className="space-y-4" data-testid="checkout-form">
+        <div>
+          <label htmlFor="nombre" className="block mb-1 text-sm font-medium">
+            Nombre
+          </label>
+          <input
+            id="nombre"
+            data-testid="input-nombre"
+            value={nombre}
+            onChange={(e) => setNombre(e.target.value)}
+            className="w-full px-3 py-2 border border-neutral-600 rounded-md bg-neutral-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
 
-        <label htmlFor="email">Email</label>
-        <input id="email" data-testid="input-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+        <div>
+          <label htmlFor="email" className="block mb-1 text-sm font-medium">
+            Email
+          </label>
+          <input
+            id="email"
+            data-testid="input-email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full px-3 py-2 border border-neutral-600 rounded-md bg-neutral-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
 
-        <label htmlFor="dni">DNI</label>
-        <input id="dni" data-testid="input-dni" value={dni} onChange={(e) => setDni(e.target.value)} />
+        <div>
+          <label htmlFor="dni" className="block mb-1 text-sm font-medium">
+            DNI
+          </label>
+          <input
+            id="dni"
+            data-testid="input-dni"
+            value={dni}
+            onChange={(e) => setDni(e.target.value)}
+            className="w-full px-3 py-2 border border-neutral-600 rounded-md bg-neutral-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
 
-        <button type="submit" data-testid="btn-confirmar" disabled={items.length === 0}>
+        {error && (
+          <p data-testid="checkout-error" className="text-red-400 text-sm">
+            {error}
+          </p>
+        )}
+
+        <button
+          type="submit"
+          data-testid="btn-confirmar"
+          disabled={items.length === 0}
+          className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md shadow disabled:bg-gray-600"
+        >
           Confirmar compra
         </button>
       </form>
-
-      {error && <p data-testid="checkout-error" style={{ color: "tomato" }}>{error}</p>}
     </div>
   );
 }

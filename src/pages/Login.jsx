@@ -11,14 +11,14 @@ export default function Login() {
   const handleSubmit = (e) => {
     e.preventDefault();
     setError("");
-
     const found = usuarios.find(
       (u) => u.email === email.trim() && u.password === password
     );
-
     if (found) {
-      // sesión mínima para futuras pantallas
-      localStorage.setItem("sessionUser", JSON.stringify({ email: found.email, nombre: found.nombre }));
+      localStorage.setItem(
+        "sessionUser",
+        JSON.stringify({ email: found.email, nombre: found.nombre })
+      );
       navigate("/catalogo");
     } else {
       setError("Credenciales inválidas");
@@ -26,38 +26,58 @@ export default function Login() {
   };
 
   return (
-    <div style={{ padding: 16 }}>
-      <h1 data-testid="login-page">Página de Login</h1>
+    <div className="max-w-md mx-auto bg-neutral-800 border border-neutral-700 rounded-lg shadow p-6">
+      <h1 className="text-2xl font-bold mb-4 text-center">Login</h1>
 
-      <form onSubmit={handleSubmit} data-testid="login-form" style={{ display: "grid", gap: 8, maxWidth: 360 }}>
-        <label htmlFor="email">Email</label>
-        <input
-          id="email"
-          data-testid="input-email"
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
+      <form
+        onSubmit={handleSubmit}
+        className="space-y-4"
+        data-testid="login-form"
+      >
+        <div>
+          <label htmlFor="email" className="block mb-1 text-sm font-medium">
+            Email
+          </label>
+          <input
+            id="email"
+            data-testid="input-email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full px-3 py-2 border border-neutral-600 rounded-md bg-neutral-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            required
+          />
+        </div>
 
-        <label htmlFor="password">Contraseña</label>
-        <input
-          id="password"
-          data-testid="input-password"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
+        <div>
+          <label htmlFor="password" className="block mb-1 text-sm font-medium">
+            Contraseña
+          </label>
+          <input
+            id="password"
+            data-testid="input-password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-full px-3 py-2 border border-neutral-600 rounded-md bg-neutral-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            required
+          />
+        </div>
 
-        <button type="submit" data-testid="btn-login">Ingresar</button>
+        {error && (
+          <p data-testid="login-error" className="text-red-400 text-sm">
+            {error}
+          </p>
+        )}
+
+        <button
+          type="submit"
+          data-testid="btn-login"
+          className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md shadow"
+        >
+          Ingresar
+        </button>
       </form>
-
-      {error && (
-        <p data-testid="login-error" style={{ color: "tomato", marginTop: 8 }}>
-          {error}
-        </p>
-      )}
     </div>
   );
 }
