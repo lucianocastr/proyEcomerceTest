@@ -1,121 +1,305 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { readCart } from "../lib/cart";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate, Link } from "react-router-dom";
+
+
 import { createOrder } from "../lib/order";
-import { isLoggedIn } from "../lib/session";
+
+import { readCart } from "../lib/cart";
+import {
+  normalizeCard,
+  luhn,
+  isValidExpiry,
+  isValidCvc,
+  last4,
+} from "../lib/card";
+import { payments } from "../lib/payments";
+
+// Formateador ARS local (evita dependencias)
+const fmtARS = (n) =>
+  new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" }).format(
+    Number(n || 0)
+  );
 
 export default function Checkout() {
+  const navigate = useNavigate();
+
+  // ------- Carrito / Totales -------
+  const [items, setItems] = useState([]);
+  useEffect(() => {
+    setItems(readCart());
+  }, []);
+
+  const total = useMemo(
+    () =>
+      items.reduce(
+        (acc, it) => acc + Number(it?.precio || 0) * Number(it?.cantidad || 0),
+        0
+      ),
+    [items]
+  );
+
+  // ------- Datos del comprador -------
   const [nombre, setNombre] = useState("");
   const [email, setEmail] = useState("");
   const [dni, setDni] = useState("");
+
+  const nombreOk = nombre.trim().length >= 2;
+  const emailOk = /^\S+@\S+\.\S+$/.test(email);
+  const dniOk = /^\d{6,12}$/.test(dni);
+
+  // ------- Pago (simulado) -------
+  const [card, setCard] = useState("");
+  const [exp, setExp] = useState(""); // MM/YY
+  const [cvc, setCvc] = useState("");
+
+  const cardOk = useMemo(() => luhn(card), [card]);
+  const expOk = useMemo(() => isValidExpiry(exp), [exp]);
+  const cvcOk = useMemo(() => isValidCvc(cvc), [cvc]);
+
+  // ------- UI estado -------
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [items, setItems] = useState([]);
-  const navigate = useNavigate();
 
-  // Regla 1: requiere login
-  useEffect(() => {
-    if (!isLoggedIn()) navigate("/login");
-  }, [navigate]);
+  const formOk =
+    items.length > 0 &&
+    nombreOk &&
+    emailOk &&
+    dniOk &&
+    cardOk &&
+    expOk &&
+    cvcOk;
 
-  // Regla 2: carrito no vacío
-  useEffect(() => {
-    const c = readCart();
-    setItems(c);
-    if (c.length === 0) navigate("/catalogo");
-  }, [navigate]);
-
-  const total = items.reduce((acc, it) => acc + it.precio * it.cantidad, 0);
-
-  const handleSubmit = (e) => {
+  const onSubmit = async (e) => {
     e.preventDefault();
+    if (!formOk || loading) return;
+
+    setLoading(true);
     setError("");
 
-    if (!nombre.trim() || !email.trim() || !dni.trim()) return setError("Completa todos los campos");
-    if (!/^\S+@\S+\.\S+$/.test(email)) return setError("Email inválido");
-    if (!/^\d{7,9}$/.test(dni)) return setError("DNI inválido");
-    if (items.length === 0) return setError("El carrito está vacío");
-
     try {
-      createOrder({ nombre, email, dni });
-      navigate("/confirmacion");
+      const token = last4(card);
+
+      const res = await payments.charge({
+        amount: total,
+        email,
+        token,
+        name: nombre,
+        dni,
+      });
+
+      if (res.status === "approved") {
+        // Persiste la orden y limpia el carrito (lo hace createOrder)
+        createOrder({ nombre, email, dni });
+
+        // Navegá a confirmación (RequireOrder la dejará pasar)
+        navigate("/confirmacion");
+        return;
+        }
+ else {
+        setError(
+          "Pago rechazado" +
+            (res.reason ? ` (${res.reason.replaceAll("_", " ")})` : "") +
+            ". Probá otra tarjeta."
+        );
+      }
     } catch (err) {
-      setError(err.message || "Error al crear la orden");
+      setError(
+        "Error técnico al procesar el pago. Verificá tu conexión e intentá nuevamente."
+      );
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="max-w-lg mx-auto bg-neutral-800 border border-neutral-700 rounded-lg shadow p-6">
-      <h1 className="text-2xl font-bold mb-4 text-center">Checkout</h1>
+    <div className="max-w-2xl mx-auto">
+      {/* Breadcrumb/nav mínimo */}
+      <nav className="text-sm text-neutral-400 mb-4">
+        <Link to="/catalogo" className="hover:underline">
+          Catálogo
+        </Link>{" "}
+        / <span className="text-neutral-200">Checkout</span>
+      </nav>
 
-      {items.length > 0 && (
-        <div className="mb-4">
-          <ul className="text-sm space-y-1">
-            {items.map((it) => (
-              <li key={it.id}>
-                {it.nombre} × {it.cantidad} — ${it.precio * it.cantidad}
-              </li>
-            ))}
-          </ul>
-          <p className="mt-2 font-semibold">Total: ${total}</p>
-        </div>
-      )}
+      <div className="grid md:grid-cols-2 gap-6">
+        {/* ------- Resumen de compra ------- */}
+        <aside className="bg-neutral-800 border border-neutral-700 rounded-xl p-5">
+          <h3 className="text-lg font-semibold mb-3">Resumen</h3>
 
-      <form onSubmit={handleSubmit} className="space-y-4" data-testid="checkout-form">
-        <div>
-          <label htmlFor="nombre" className="block mb-1 text-sm font-medium">
-            Nombre
-          </label>
-          <input
-            id="nombre"
-            data-testid="input-nombre"
-            value={nombre}
-            onChange={(e) => setNombre(e.target.value)}
-            className="w-full px-3 py-2 border border-neutral-600 rounded-md bg-neutral-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
+          {items.length === 0 ? (
+            <p className="text-neutral-400">
+              Tu carrito está vacío.{" "}
+              <Link to="/catalogo" className="text-blue-400 hover:underline">
+                Volver al catálogo
+              </Link>
+            </p>
+          ) : (
+            <>
+              <ul className="space-y-2 mb-3">
+                {items.map((it) => (
+                  <li
+                    key={it.id}
+                    className="flex justify-between text-sm text-neutral-300"
+                  >
+                    <span>
+                      {it.nombre} × {it.cantidad}
+                    </span>
+                    <span>
+                      {fmtARS(Number(it.precio) * Number(it.cantidad))}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <div className="flex justify-between border-t border-neutral-700 pt-2 font-medium">
+                <span>Total</span>
+                <span>{fmtARS(total)}</span>
+              </div>
+            </>
+          )}
+        </aside>
 
-        <div>
-          <label htmlFor="email" className="block mb-1 text-sm font-medium">
-            Email
-          </label>
-          <input
-            id="email"
-            data-testid="input-email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full px-3 py-2 border border-neutral-600 rounded-md bg-neutral-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
+        {/* ------- Formulario ------- */}
+        <section className="bg-neutral-800 border border-neutral-700 rounded-xl p-6">
+          <h2 className="text-center text-xl font-semibold mb-4">Checkout</h2>
 
-        <div>
-          <label htmlFor="dni" className="block mb-1 text-sm font-medium">
-            DNI
-          </label>
-          <input
-            id="dni"
-            data-testid="input-dni"
-            value={dni}
-            onChange={(e) => setDni(e.target.value)}
-            className="w-full px-3 py-2 border border-neutral-600 rounded-md bg-neutral-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
+          <form onSubmit={onSubmit} className="space-y-4">
+            {/* Comprador */}
+            <div>
+              <label className="text-sm text-neutral-300">Nombre</label>
+              <input
+                className="w-full mt-1 rounded-md bg-neutral-900 border border-neutral-700 px-3 py-2"
+                value={nombre}
+                onChange={(e) => setNombre(e.target.value)}
+                data-testid="inp-nombre"
+              />
+              {!nombreOk && (
+                <p className="text-xs text-red-400 mt-1">
+                  Ingrese un nombre válido.
+                </p>
+              )}
+            </div>
 
-        {error && (
-          <p data-testid="checkout-error" className="text-red-400 text-sm">
-            {error}
-          </p>
-        )}
+            <div>
+              <label className="text-sm text-neutral-300">Email</label>
+              <input
+                className="w-full mt-1 rounded-md bg-neutral-900 border border-neutral-700 px-3 py-2"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                data-testid="inp-email"
+              />
+              {!emailOk && (
+                <p className="text-xs text-red-400 mt-1">Email inválido.</p>
+              )}
+            </div>
 
-        <button
-          type="submit"
-          data-testid="btn-confirmar"
-          disabled={items.length === 0}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md shadow disabled:bg-gray-600"
-        >
-          Confirmar compra
-        </button>
-      </form>
+            <div>
+              <label className="text-sm text-neutral-300">DNI</label>
+              <input
+                className="w-full mt-1 rounded-md bg-neutral-900 border border-neutral-700 px-3 py-2"
+                value={dni}
+                onChange={(e) => setDni(e.target.value.replace(/\D/g, ""))}
+                data-testid="inp-dni"
+              />
+              {!dniOk && (
+                <p className="text-xs text-red-400 mt-1">DNI inválido.</p>
+              )}
+            </div>
+
+            {/* Pago simulado */}
+            <div className="pt-3 border-t border-neutral-700">
+              <p className="text-neutral-300 text-sm mb-2">
+                Datos de pago (simulado)
+              </p>
+
+              <div>
+                <label className="text-sm text-neutral-300">
+                  Número de tarjeta
+                </label>
+                <input
+                  className="w-full mt-1 rounded-md bg-neutral-900 border border-neutral-700 px-3 py-2 tracking-widest"
+                  inputMode="numeric"
+                  placeholder="4242 4242 4242 4242"
+                  value={card}
+                  onChange={(e) => setCard(normalizeCard(e.target.value))}
+                  data-testid="inp-card"
+                />
+                {card && !cardOk && (
+                  <p className="text-xs text-red-400 mt-1">
+                    Número inválido (Luhn).
+                  </p>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-sm text-neutral-300">
+                    Vencimiento (MM/YY)
+                  </label>
+                  <input
+                    className="w-full mt-1 rounded-md bg-neutral-900 border border-neutral-700 px-3 py-2"
+                    placeholder="12/28"
+                    value={exp}
+                    onChange={(e) => {
+                      let v = e.target.value.replace(/[^\d]/g, "").slice(0, 4);
+                      if (v.length >= 3) v = v.slice(0, 2) + "/" + v.slice(2);
+                      setExp(v);
+                    }}
+                    data-testid="inp-exp"
+                  />
+                  {exp && !expOk && (
+                    <p className="text-xs text-red-400 mt-1">
+                      Fecha inválida o vencida.
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="text-sm text-neutral-300">CVC</label>
+                  <input
+                    className="w-full mt-1 rounded-md bg-neutral-900 border border-neutral-700 px-3 py-2"
+                    inputMode="numeric"
+                    placeholder="123"
+                    value={cvc}
+                    onChange={(e) =>
+                      setCvc(e.target.value.replace(/\D/g, "").slice(0, 4))
+                    }
+                    data-testid="inp-cvc"
+                  />
+                  {cvc && !cvcOk && (
+                    <p className="text-xs text-red-400 mt-1">CVC inválido.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={!formOk || loading}
+              className={`w-full mt-2 rounded-md px-4 py-2 font-medium ${
+                formOk && !loading
+                  ? "bg-blue-600 hover:bg-blue-500"
+                  : "bg-neutral-700 cursor-not-allowed"
+              }`}
+              data-testid="btn-pagar"
+            >
+              {loading ? "Procesando..." : "Confirmar compra"}
+            </button>
+
+            {error && (
+              <p className="text-sm text-red-400 mt-2" role="alert">
+                {error}
+              </p>
+            )}
+          </form>
+
+          {items.length > 0 && (
+            <p className="text-[11px] text-neutral-500 mt-3">
+              * Este formulario simula un pago para fines académicos. No se
+              almacenan datos sensibles.
+            </p>
+          )}
+        </section>
+      </div>
     </div>
   );
 }
